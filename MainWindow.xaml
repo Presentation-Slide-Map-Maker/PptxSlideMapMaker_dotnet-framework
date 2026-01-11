@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:TocBuilder_dotnet_framework" 
         xmlns:vm="clr-namespace:TocBuilder_dotnet_framework.ViewModels" 
         xmlns:model="clr-namespace:TocBuilder_dotnet_framework.Models" 
+        Icon="/favicon.ico"
         mc:Ignorable="d" Title="Presentation TOC Builder" Height="700" Width="1100">
     <Window.DataContext>
         <vm:MainViewModel />
@@ -15,6 +16,17 @@
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="4"/>
             <Setter Property="MinWidth" Value="80"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontWeight="DemiBold" FontSize="14"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="BorderBrush" Value="DarkGray"/>
         </Style>
         <DataTemplate x:Key="PreviewItemTemplate" DataType="model:PreviewItem">
             <Border BorderBrush="#CCCCCC" BorderThickness="1" Background="White" Padding="2">
@@ -39,7 +51,7 @@
         </Grid.RowDefinitions>
         <!-- Панель файла (занимает всю ширину) -->
         <GroupBox Grid.Row="0" Header="Презентация" Margin="0,0,0,10">
-            <Grid>
+            <Grid Margin="0,3,0,3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -52,34 +64,38 @@
         </GroupBox>
         <!-- Настройки (занимает всю ширину) -->
         <GroupBox Grid.Row="1" Header="Настройки сетки" Margin="0,0,0,10">
-            <StackPanel Orientation="Horizontal">
-                <StackPanel VerticalAlignment="Center" Width="100">
+            <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                <StackPanel Margin="5,0,0,0">
+                    <TextBlock Text="Колонок:" Margin="0,0,0,5"/>
+                    <Slider x:Name="ColumnsSlider" Minimum="1" Maximum="6" Value="{Binding Columns}" Width="90" TickFrequency="1" IsSnapToTickEnabled="True"
+                            IsEnabled="{Binding UseFixedColumns}"/>
+                    <TextBlock Text="{Binding ColumnsDisplayText}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center" Width="100"  Margin="10,0,0,0">
                     <CheckBox IsChecked="{Binding UseFixedColumns}">
                         <CheckBox.Content>
                             <TextBlock Text="Фиксировать кол-во колонок" TextWrapping="Wrap" TextAlignment="Center"/>
                         </CheckBox.Content>
                     </CheckBox>
                 </StackPanel>
-                <StackPanel Margin="20,0,20,0">
-                    <TextBlock Text="Колонок:" Margin="0,0,0,5"/>
-                    <Slider x:Name="ColumnsSlider" Minimum="1" Maximum="6" Value="{Binding Columns}" Width="100" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                    <TextBlock Text="{Binding Columns}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                <StackPanel Orientation="Horizontal" Margin="15,0,15,0">
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="Отступы (px):" Margin="0,0,0,5"/>
                     <Slider x:Name="MarginSlider" Minimum="10" Maximum="50" Value="{Binding Margin}" Width="100" TickFrequency="5" IsSnapToTickEnabled="True"/>
                     <TextBlock Text="{Binding Margin, StringFormat='{}{0}px'}" HorizontalAlignment="Center" FontWeight="Bold"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                <!--<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
                     <Button Content="Выбрать все" Command="{Binding SelectAllCommand}"/>
                     <Button Content="Снять все" Command="{Binding DeselectAllCommand}"/>
-                </StackPanel>
-                <StackPanel Margin="20,0,0,0">
+                </StackPanel>-->
+                <!--<StackPanel Margin="20,0,0,0">
                     <TextBlock Text="Масштаб превью:" Margin="0,0,0,5"/>
                     <Slider x:Name="ZoomSlider" Minimum="0.1" Maximum="2.0" Value="{Binding PreviewScale}" 
             Width="100" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
                     <TextBlock Text="{Binding PreviewScale, StringFormat='{}{0:P0}'}" HorizontalAlignment="Center" FontWeight="Bold"/>
-                </StackPanel>
+                </StackPanel>-->
             </StackPanel>
         </GroupBox>
         <!-- Основная область (разделена на 2 колонки) -->
@@ -91,49 +107,63 @@
                 <!-- Правая колонка для предпросмотра -->
             </Grid.ColumnDefinitions>
             <!-- Левая панель выбора слайдов -->
-            <GroupBox Grid.Column="0" Header="Выберите слайды для оглавления" Margin="0,0,10,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Slides}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Vertical"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="#CCCCCC" BorderThickness="1"
-                                    CornerRadius="3" Margin="4" Padding="6" Background="White">
-                                    <StackPanel>
-                                        <!-- Верхняя строка -->
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock Text="{Binding Number, StringFormat='Слайд {0}'}"
-                                                FontWeight="Bold" VerticalAlignment="Center"/>
+            <GroupBox Grid.Column="0" Header="Cлайды в оглавление" Margin="0,0,10,0">
+                <Grid Margin="0,0,5,5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <!-- Кнопки -->
+                        <RowDefinition Height="*"/>
+                        <!-- Список слайдов -->
+                    </Grid.RowDefinitions>
+                    <!-- Кнопки "Выбрать все" / "Снять все" -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5" Grid.Row="0">
+                        <Button Content="Выбрать все" Command="{Binding SelectAllCommand}"/>
+                        <Button Content="Снять все" Command="{Binding DeselectAllCommand}"/>
+                    </StackPanel>
+                    <!-- Список слайдов -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="2">
+                        <ItemsControl ItemsSource="{Binding Slides}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#CCCCCC" BorderThickness="1"
+                                CornerRadius="3" Margin="4" Padding="6" Background="White">
+                                        <StackPanel>
+                                            <!-- Верхняя строка -->
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding Number, StringFormat='Слайд {0}'}"
+                                               FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <!-- Миниатюра -->
+                                            <Image Source="{Binding Thumbnail}"
+                                       Height="70" Stretch="Uniform" Margin="0,4,0,4"/>
+                                            <!-- Выбор фона -->
+                                            <RadioButton IsChecked="{Binding IsBackground}" GroupName="BackgroundSlide"
+                                             Content="Использовать как фон TOC" FontSize="11" Foreground="#444"/>
                                         </StackPanel>
-                                        <!-- Миниатюра -->
-                                        <Image Source="{Binding Thumbnail}"
-                                            Height="70" Stretch="Uniform" Margin="0,4,0,4"/>
-                                        <!-- Выбор фона -->
-                                        <RadioButton IsChecked="{Binding IsBackground}" GroupName="BackgroundSlide"
-                                            Content="Использовать как фон TOC" FontSize="11" Foreground="#444"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
             </GroupBox>
             <!-- Правая панель предпросмотра -->
             <GroupBox Grid.Column="1" Header="Предпросмотр TOC" SizeChanged="PreviewGroupBox_SizeChanged">
-                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3">
+                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Margin="5,5,5,5">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Grid Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}">
                             <Grid.RenderTransform>
                                 <ScaleTransform ScaleX="{Binding PreviewScale}" ScaleY="{Binding PreviewScale}" />
                             </Grid.RenderTransform>
-                            <!-- ФОН -->
+                            <!-- Фон -->
                             <Image Source="{Binding PreviewBackGround}" Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Stretch="Uniform" />
-                            <!-- КОНТЕНТ -->
+                            <!-- Сетка миниатюр -->
                             <Canvas Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Background="#80FFFFFF">
                                 <ItemsControl ItemsSource="{Binding PreviewItems}" ItemTemplate="{StaticResource PreviewItemTemplate}">
                                     <ItemsControl.ItemsPanel>
@@ -154,9 +184,25 @@
                 </Border>
             </GroupBox>
         </Grid>
-        <!-- Статус (занимает всю ширину, строка внизу) -->
+        <!-- Статус + масштаб превью -->
         <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="3" Padding="10" Margin="0,10,0,0">
-            <TextBlock Text="{Binding Status}" FontStyle="Italic" Foreground="#333333" TextWrapping="Wrap"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <!-- Статус слева -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Масштаб справа -->
+                </Grid.ColumnDefinitions>
+                <!-- Текст статуса -->
+                <TextBlock Text="{Binding Status}" FontStyle="Italic" Foreground="#333333" TextWrapping="Wrap"/>
+                <!-- Масштаб превью -->
+                <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
+                    <TextBlock Text="Масштаб:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <Slider x:Name="ZoomSlider" Minimum="0.5" Maximum="2.0" Value="{Binding PreviewScale}"
+                    Width="80" TickFrequency="0.1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding PreviewScale, StringFormat='{}{0:P0}'}" VerticalAlignment="Center" Margin="6,0,0,0" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
         </Border>
         <!-- Индикатор загрузки (занимает всё окно) -->
         <Border Grid.Row="0" Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Panel.ZIndex="100">

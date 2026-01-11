@@ -92,7 +92,21 @@ namespace TocBuilder_dotnet_framework.ViewModels
         public int Columns
         {
             get => _columns;
-            set { _columns = value; OnPropertyChanged(); if (UseFixedColumns) UpdatePreview(); }
+            set
+            {
+                if (_columns != value)
+                {
+                    _columns = value;
+                    OnPropertyChanged();
+                    if (UseFixedColumns) UpdatePreview();
+                    OnPropertyChanged(nameof(ColumnsDisplayText));
+                }
+            }
+        }
+
+        public string ColumnsDisplayText
+        {
+            get => UseFixedColumns ? Columns.ToString() : "авто";
         }
 
         public int Margin
@@ -104,7 +118,16 @@ namespace TocBuilder_dotnet_framework.ViewModels
         public bool UseFixedColumns
         {
             get => _useFixedColumns;
-            set { _useFixedColumns = value; OnPropertyChanged(); UpdatePreview(); }
+            set
+            {
+                if (_useFixedColumns != value)
+                {
+                    _useFixedColumns = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ColumnsDisplayText));
+                    UpdatePreview();
+                }
+            }
         }
 
         public string Status

@@ -1,6 +1,5 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
-using DocumentFormat.OpenXml.VariantTypes;
 using Microsoft.Office.Core;
 using Microsoft.Office.Interop.PowerPoint;
 using System;
@@ -106,6 +105,12 @@ namespace TocBuilder_dotnet_framework.Services
         {
             using (var doc = PresentationDocument.Open(pptxPath, true))
             {
+                // Указание авторства
+                var props = doc.PackageProperties;
+                props.Creator = "TOC Builder";
+                props.LastModifiedBy = "TOC Builder";
+
+
                 var presPart = doc.PresentationPart;
                 var slideIds = presPart.Presentation.SlideIdList.Elements<SlideId>().ToList();
 
@@ -124,6 +129,52 @@ namespace TocBuilder_dotnet_framework.Services
                 tocPart.Slide = new DocumentFormat.OpenXml.Presentation.Slide(
                     new CommonSlideData(new ShapeTree()),
                     new ColorMapOverride(new A.MasterColorMapping()));
+
+                var notesPart = tocPart.AddNewPart<NotesSlidePart>(); // Упоминание в заметках
+                notesPart.NotesSlide = new NotesSlide(
+                    new CommonSlideData(
+                        new ShapeTree(
+                            new NonVisualGroupShapeProperties(
+                                new NonVisualDrawingProperties { Id = 1, Name = "" },
+                                new NonVisualGroupShapeDrawingProperties(),
+                                new ApplicationNonVisualDrawingProperties()
+                            ),
+                            new GroupShapeProperties(new A.TransformGroup()),
+
+                            new DocumentFormat.OpenXml.Presentation.Shape(
+                                new NonVisualShapeProperties(
+                                    new NonVisualDrawingProperties
+                                    {
+                                        Id = 2,
+                                        Name = "Notes Placeholder"
+                                    },
+                                    new NonVisualShapeDrawingProperties(
+                                        new A.ShapeLocks { NoGrouping = true }
+                                    ),
+                                    new ApplicationNonVisualDrawingProperties(
+                                        new PlaceholderShape
+                                        {
+                                            Type = PlaceholderValues.Body
+                                        }
+                                    )
+                                ),
+                                new ShapeProperties(),
+                                new TextBody(
+                                    new A.BodyProperties(),
+                                    new A.ListStyle(),
+                                    new A.Paragraph(
+                                        new A.Run(
+                                            new A.Text("Made with TOC Builder")
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                );
+                notesPart.AddPart(presPart.NotesMasterPart); // привязка к NotesMaster
+
+
                 tocPart.AddPart(layoutPart);
                 tocPart.Slide.Save();
 
@@ -274,10 +325,100 @@ namespace TocBuilder_dotnet_framework.Services
                         )
                     );
 
+
+                }
+
+                // Создание обратной навигации после добавления TOC-слайда в SlideIdList
+                string tocRelId = presPart.GetIdOfPart(tocPart);
+                int totalSlides = presPart.Presentation.SlideIdList.Count();
+
+                // Проходим по всем слайдам по из порядку
+                slideIds = presPart.Presentation.SlideIdList.Cast<SlideId>().ToList();
+                for (int i = 1; i < slideIds.Count; i++) // пропускаем титульный слайд
+                {
+                    if (slideIds[i].RelationshipId == tocRelId) continue; // пропускаем TOC
+
+                    var slidePart = (SlidePart)presPart.GetPartById(slideIds[i].RelationshipId);
+                    AddBacklinkToSlide(slidePart, tocPart, presPart, i + 1, totalSlides);
                 }
 
                 presPart.Presentation.Save();
             }
+        }
+
+        private void AddBacklinkToSlide(
+            SlidePart slidePart,
+            SlidePart tocPart,
+            PresentationPart presPart,
+            int currentSlideNumber,
+            int totalSlides)
+        {
+            var shapeTree = slidePart.Slide.CommonSlideData.ShapeTree;
+
+            // Генерация уникального ID
+            uint maxId = 1;
+            foreach (var el in shapeTree.Elements())
+            {
+                if (el is DocumentFormat.OpenXml.Presentation.Shape s && s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Id != null)
+                    maxId = Math.Max(maxId, s.NonVisualShapeProperties.NonVisualDrawingProperties.Id.Value + 1);
+                else if (el is Picture p && p.NonVisualPictureProperties?.NonVisualDrawingProperties?.Id != null)
+                    maxId = Math.Max(maxId, p.NonVisualPictureProperties.NonVisualDrawingProperties.Id.Value + 1);
+            }
+
+            // Размер слайда
+            long slideWidth = presPart.Presentation.SlideSize.Cx;
+            long slideHeight = presPart.Presentation.SlideSize.Cy;
+
+            long margin = 300000;
+            long textWidth = 800000;
+            long textHeight = 200000;
+            long x = slideWidth - textWidth - margin;
+            long y = slideHeight - textHeight - margin;
+
+            string backlinkText = $"{currentSlideNumber}/{totalSlides}";
+
+            // добавляем TOC-слайд как часть текущего слайда
+            slidePart.AddPart(tocPart); // создаёт локальное отношение
+            string localTocRelId = slidePart.GetIdOfPart(tocPart); // локальный ID
+
+            var backlinkShape = new DocumentFormat.OpenXml.Presentation.Shape(
+                new NonVisualShapeProperties(
+                    new NonVisualDrawingProperties { Id = maxId, Name = "Backlink to TOC" },
+                    new NonVisualShapeDrawingProperties(),
+                    new ApplicationNonVisualDrawingProperties()
+                ),
+                new ShapeProperties(
+                    new A.Transform2D(
+                        new A.Offset { X = x, Y = y },
+                        new A.Extents { Cx = textWidth, Cy = textHeight }
+                    ),
+                    new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle },
+                    new A.NoFill(),
+                    new A.Outline { Width = 0 }
+                ),
+                new TextBody(
+                    new A.BodyProperties(),
+                    new A.ListStyle(),
+                    new A.Paragraph(
+                        new A.Run(
+                            new A.RunProperties(
+                                new A.SolidFill(new A.RgbColorModelHex { Val = "0000FF" }),
+                                new A.Underline(),
+                                new A.HyperlinkOnClick
+                                {
+                                    Id = localTocRelId,
+                                    Action = "ppaction://hlinksldjump"
+                                })
+                            {
+                                Language = "ru-RU"
+                            },
+                            new A.Text(backlinkText)
+                        )
+                    )
+                )
+            );
+
+            shapeTree.Append(backlinkShape);
         }
 
 
