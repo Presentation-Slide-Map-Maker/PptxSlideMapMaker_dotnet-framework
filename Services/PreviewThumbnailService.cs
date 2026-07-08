@@ -1,20 +1,21 @@
-﻿using DocumentFormat.OpenXml.Packaging;
-using Microsoft.Office.Core;
-using Microsoft.Office.Interop.PowerPoint;
+using DocumentFormat.OpenXml.Packaging;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows.Media.Imaging;
-using Application = Microsoft.Office.Interop.PowerPoint.Application;
+using System.Linq;
 
 namespace TocBuilder_dotnet_framework.Services
 {
-    public class ThumbnailService : IDisposable
+    public class PreviewThumbnailService
     {
-        private bool _disposed;
+        private readonly SlideExportService _slideExportService;
+
+        public PreviewThumbnailService()
+        {
+            _slideExportService = new SlideExportService();
+        }
 
         public List<Models.SlideItem> GetSlides(string filePath)
         {
@@ -22,54 +23,62 @@ namespace TocBuilder_dotnet_framework.Services
             string tempDir = Path.Combine(Path.GetTempPath(), $"ppt_thumbs_{Guid.NewGuid()}");
             Directory.CreateDirectory(tempDir);
 
-            Application pptApp = null;
-            Presentation pres = null;
-
             try
             {
-                pptApp = new Application();
-                pres = pptApp.Presentations.Open(filePath, MsoTriState.msoTrue, MsoTriState.msoFalse, MsoTriState.msoFalse);
+                int slideCount = 0;
+                float slideWidth = LayoutConstants.DefaultSlideWidth;
+                float slideHeight = LayoutConstants.DefaultSlideHeight;
 
-                float slideWidth = pres.PageSetup.SlideWidth;
-                float slideHeight = pres.PageSetup.SlideHeight;
+                using (var doc = PresentationDocument.Open(filePath, isEditable: false))
+                {
+                    var presPart = doc.PresentationPart;
+                    if (presPart?.Presentation?.SlideIdList != null)
+                    {
+                        slideCount = presPart.Presentation.SlideIdList.Count();
+                    }
+
+                    var slideSize = presPart?.Presentation?.SlideSize;
+                    if (slideSize != null && slideSize.Cx.HasValue && slideSize.Cy.HasValue)
+                    {
+                        const double EMU_PER_PIXEL = 9525.0;
+                        slideWidth = (float)(slideSize.Cx.Value / EMU_PER_PIXEL);
+                        slideHeight = (float)(slideSize.Cy.Value / EMU_PER_PIXEL);
+                    }
+                }
+
+                if (slideCount == 0) return slides;
+
                 float aspect = slideWidth / slideHeight;
-
                 int previewWidth = 320;
                 int previewHeight = (int)(previewWidth / aspect);
 
-                for (int i = 1; i <= pres.Slides.Count; i++)
+                var slideNumbers = Enumerable.Range(1, slideCount).ToList();
+                
+                // ������� ����� SlideExportService
+                _slideExportService.ExportSlidesToPng(filePath, tempDir, slideNumbers, previewWidth * 2, previewHeight * 2);
+
+                for (int i = 1; i <= slideCount; i++)
                 {
                     string thumbPath = Path.Combine(tempDir, $"slide_{i}.png");
-                    try
-                    {
-                        pres.Slides[i].Export(thumbPath, "PNG", previewWidth * 2, previewHeight * 2);
-                    }
-                    catch
+                    
+                    if (!File.Exists(thumbPath))
                     {
                         CreateFallbackThumbnail(thumbPath, i, previewWidth, previewHeight);
                     }
 
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(thumbPath);
-                    bitmap.EndInit();
-                    bitmap.Freeze();
+                    byte[] thumbnailBytes = File.ReadAllBytes(thumbPath);
 
                     slides.Add(new Models.SlideItem
                     {
                         Number = i,
-                        Thumbnail = bitmap,
+                        Thumbnail = thumbnailBytes,
                         IsSelected = true
                     });
                 }
             }
             finally
             {
-                if (pres != null) { pres.Close(); Marshal.ReleaseComObject(pres); }
-                if (pptApp != null) { pptApp.Quit(); Marshal.ReleaseComObject(pptApp); }
-
-                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+                TryDeleteFolder(tempDir);
             }
 
             return slides;
@@ -80,9 +89,9 @@ namespace TocBuilder_dotnet_framework.Services
             using (Bitmap bmp = new Bitmap(width, height))
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.Clear(System.Drawing.Color.LightGray);
+                g.Clear(Color.LightGray);
                 g.DrawString($"Slide {slideNumber}",
-                    new System.Drawing.Font("Arial", 20),
+                    new Font("Arial", 20),
                     Brushes.Black,
                     new PointF(10, 10));
                 bmp.Save(filePath, ImageFormat.Png);
@@ -101,13 +110,12 @@ namespace TocBuilder_dotnet_framework.Services
                     var slideSize = presentation?.SlideSize;
                     if (slideSize != null)
                     {
-                        // (в EMU)
                         long? cx = slideSize.Cx;
                         long? cy = slideSize.Cy;
 
                         if (cx.HasValue && cy.HasValue)
                         {
-                            const double EMU_PER_PIXEL = 9525.0; // 1 пиксель = 9525 EMU при 96 DPI
+                            const double EMU_PER_PIXEL = 9525.0; // 1 pixel = 9525 EMU at 96 DPI
                             float widthPx = (float)(cx.Value / EMU_PER_PIXEL);
                             float heightPx = (float)(cy.Value / EMU_PER_PIXEL);
                             return (widthPx, heightPx);
@@ -115,18 +123,17 @@ namespace TocBuilder_dotnet_framework.Services
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                // Для отладки можно логировать: Debug.WriteLine($"GetSlideDimensions error: {ex}");
+                // Fallback dimensions logic handled below
             }
 
-            // Fallback на 16:9 (960×540 pt)
             return (LayoutConstants.DefaultSlideWidth, LayoutConstants.DefaultSlideHeight);
         }
 
-        public void Dispose()
+        private static void TryDeleteFolder(string path)
         {
-            if (!_disposed) { _disposed = true; GC.SuppressFinalize(this); }
+            try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { }
         }
     }
 }

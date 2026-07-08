@@ -1,4 +1,4 @@
-﻿<Window x:Class="TocBuilder_dotnet_framework.MainWindow" 
+<Window x:Class="TocBuilder_dotnet_framework.MainWindow" 
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
@@ -6,12 +6,14 @@
         xmlns:local="clr-namespace:TocBuilder_dotnet_framework" 
         xmlns:vm="clr-namespace:TocBuilder_dotnet_framework.ViewModels" 
         xmlns:model="clr-namespace:TocBuilder_dotnet_framework.Models" 
+        xmlns:conv="clr-namespace:TocBuilder_dotnet_framework.Converters"
         Icon="/favicon.ico"
         mc:Ignorable="d" Title="Presentation TOC Builder" Height="700" Width="1100">
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
     <Window.Resources>
+        <conv:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter" />
         <Style TargetType="Button">
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="4"/>
@@ -31,7 +33,7 @@
         <DataTemplate x:Key="PreviewItemTemplate" DataType="model:PreviewItem">
             <Border BorderBrush="#CCCCCC" BorderThickness="1" Background="White" Padding="2">
                 <StackPanel>
-                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" MaxWidth="{Binding Width}" MaxHeight="{Binding Height}"/> 
+                    <Image Source="{Binding Thumbnail, Converter={StaticResource ByteArrayToImageConverter}}" Stretch="Uniform" MaxWidth="{Binding Width}" MaxHeight="{Binding Height}"/> 
                     <TextBlock Text="{Binding Caption}" FontSize="10" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,2,0,0"/>
                 </StackPanel>
             </Border>
@@ -86,16 +88,6 @@
                     <Slider x:Name="MarginSlider" Minimum="10" Maximum="50" Value="{Binding Margin}" Width="100" TickFrequency="5" IsSnapToTickEnabled="True"/>
                     <TextBlock Text="{Binding Margin, StringFormat='{}{0}px'}" HorizontalAlignment="Center" FontWeight="Bold"/>
                 </StackPanel>
-                <!--<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
-                    <Button Content="Выбрать все" Command="{Binding SelectAllCommand}"/>
-                    <Button Content="Снять все" Command="{Binding DeselectAllCommand}"/>
-                </StackPanel>-->
-                <!--<StackPanel Margin="20,0,0,0">
-                    <TextBlock Text="Масштаб превью:" Margin="0,0,0,5"/>
-                    <Slider x:Name="ZoomSlider" Minimum="0.1" Maximum="2.0" Value="{Binding PreviewScale}" 
-            Width="100" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
-                    <TextBlock Text="{Binding PreviewScale, StringFormat='{}{0:P0}'}" HorizontalAlignment="Center" FontWeight="Bold"/>
-                </StackPanel>-->
             </StackPanel>
         </GroupBox>
         <!-- Основная область (разделена на 2 колонки) -->
@@ -140,7 +132,7 @@
                                                FontWeight="Bold" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <!-- Миниатюра -->
-                                            <Image Source="{Binding Thumbnail}"
+                                            <Image Source="{Binding Thumbnail, Converter={StaticResource ByteArrayToImageConverter}}"
                                        Height="70" Stretch="Uniform" Margin="0,4,0,4"/>
                                             <!-- Выбор фона -->
                                             <RadioButton IsChecked="{Binding IsBackground}" GroupName="BackgroundSlide"
@@ -162,7 +154,7 @@
                                 <ScaleTransform ScaleX="{Binding PreviewScale}" ScaleY="{Binding PreviewScale}" />
                             </Grid.RenderTransform>
                             <!-- Фон -->
-                            <Image Source="{Binding PreviewBackGround}" Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Stretch="Uniform" />
+                            <Image Source="{Binding PreviewBackGround, Converter={StaticResource ByteArrayToImageConverter}}" Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Stretch="Uniform" />
                             <!-- Сетка миниатюр -->
                             <Canvas Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Background="#80FFFFFF">
                                 <ItemsControl ItemsSource="{Binding PreviewItems}" ItemTemplate="{StaticResource PreviewItemTemplate}">

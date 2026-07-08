@@ -72,9 +72,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Commands\AsyncRelayCommand.cs" />
+    <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="Converters\ByteArrayToImageConverter.cs" />
+    <Compile Include="Models\OpenXmlUnits.cs" />
     <Compile Include="Models\PreviewItem.cs" />
     <Compile Include="Services\LayoutCalculatorService.cs" />
-    <Compile Include="Services\ThumbnailService.cs" />
+    <Compile Include="Services\SlideExportService.cs" />
+    <Compile Include="Services\PreviewThumbnailService.cs" />
     <Compile Include="Services\TocGeneratorService.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Page Include="MainWindow.xaml">

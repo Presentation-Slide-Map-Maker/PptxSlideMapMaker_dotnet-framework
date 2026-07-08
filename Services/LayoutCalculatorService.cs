@@ -1,8 +1,6 @@
-﻿using Microsoft.Office.Interop.PowerPoint;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows.Controls.Primitives;
 using TocBuilder_dotnet_framework.Models;
 
 namespace TocBuilder_dotnet_framework.Services
@@ -21,9 +19,6 @@ namespace TocBuilder_dotnet_framework.Services
 
     public static class LayoutCalculatorService
     {
-        //public const float SLIDE_WIDTH_POINTS = 914.4f; // Пример для 4:3
-        //public const float SLIDE_HEIGHT_POINTS = 685.8f; // Пример для 4:3
-
         public static (int Columns, float ThumbWidth, float ThumbHeight, float RowHeight) CalculateOptimalLayout(
             int slideCount,
             float margin,
@@ -38,7 +33,6 @@ namespace TocBuilder_dotnet_framework.Services
             const float minThumbWidth = LayoutConstants.MinThumbWidth;
             const float minThumbHeight = LayoutConstants.MinThumbHeight;
 
-
             // Доступная высота на мирниатюры и подписи
             float availableHeight = slideHeight - titleHeight - bottomMargin;
             float availableWidth = slideWidth - (margin * 2);
@@ -46,7 +40,7 @@ namespace TocBuilder_dotnet_framework.Services
             // Вспомогательная функция для проверки конфигурации
             (bool Fits, float ThumbW, float ThumbH, float RowH) TryColumns(int cols)
             {
-                // Ширина каждой миниатюры при `cols` колонках
+                // Ширина каждой миниатюры при кол-ве колонок = cols
                 float thumbW = (availableWidth - margin * (cols - 1)) / cols;
                 float thumbH = thumbW / slideAspectRatio;
 
@@ -59,9 +53,7 @@ namespace TocBuilder_dotnet_framework.Services
                 // Если не помещается по высоте — попробуем сжать
                 if (!fits && totalH > availableHeight)
                 {
-                    // Расчёт максимальной допустимой высоты под миниатюры+подписи
-                    // Доступная высота на миниатюры и подписи (без учёта межстрочных отступов)
-                    float maxThumbAndCaptionHeight = availableHeight / rows;
+                    // Доступная высота на миниатюры и подписи
                     float maxThumbH = (availableHeight - rows * (captionHeight + margin)) / rows;
                     if (maxThumbH > 0)
                     {
@@ -71,7 +63,6 @@ namespace TocBuilder_dotnet_framework.Services
                         // Проверим, умещается ли ширина
                         if (thumbW > (availableWidth - margin * (cols - 1)) / cols)
                         {
-                            // Ширина превышает — сжимаем по ширине
                             thumbW = (availableWidth - margin * (cols - 1)) / cols;
                             thumbH = thumbW / slideAspectRatio;
                         }
@@ -108,6 +99,7 @@ namespace TocBuilder_dotnet_framework.Services
                 int emptyCells = r * c - slideCount;
                 float symmetry = 1.0f / (1.0f + Math.Abs(r - c));
 
+                // Эвристика
                 float score = area * spaceUsed * symmetry * (1.0f / (emptyCells + 1));
 
                 if (score > bestScore)
@@ -180,23 +172,5 @@ namespace TocBuilder_dotnet_framework.Services
 
             return previewItems;
         }
-
-        //public static (double Width, double Height) CalculateCanvasSize(List<PreviewItem> previewItems)
-        //{
-        //    if (previewItems == null || !previewItems.Any())
-        //    {
-        //        return (LayoutConstants.DefaultSlideWidth, LayoutConstants.DefaultSlideHeight); // Возвращаем размер слайда по умолчанию, если нет элементов
-        //    }
-
-        //    // Находим максимальные координаты
-        //    double maxX = previewItems.Max(item => item.Right);
-        //    double maxY = previewItems.Max(item => item.Bottom);
-
-        //    // Убедимся, что размеры не меньше стандартного размера слайда
-        //    double canvasWidth = Math.Max(maxX, LayoutConstants.DefaultSlideWidth);
-        //    double canvasHeight = Math.Max(maxY, LayoutConstants.DefaultSlideHeight);
-
-        //    return (canvasWidth, canvasHeight);
-        //}
     }
 }

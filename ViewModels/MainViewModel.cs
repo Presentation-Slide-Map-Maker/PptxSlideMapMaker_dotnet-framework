@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
+using TocBuilder_dotnet_framework.Commands;
 using TocBuilder_dotnet_framework.Models;
 using TocBuilder_dotnet_framework.Services;
 
@@ -16,8 +16,8 @@ namespace TocBuilder_dotnet_framework.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private ThumbnailService _thumbnailService;
-        private TocGeneratorService _tocService;
+        private readonly PreviewThumbnailService _previewthumbnailService;
+        private readonly TocGeneratorService _tocService;
 
         private string _filePath;
         private int _columns = 3;
@@ -50,7 +50,7 @@ namespace TocBuilder_dotnet_framework.ViewModels
             set { _previewCanvasHeight = value; OnPropertyChanged(); }
         }
 
-        public BitmapImage PreviewBackGround
+        public byte[] PreviewBackGround
         {
             get
             {
@@ -141,6 +141,7 @@ namespace TocBuilder_dotnet_framework.ViewModels
             get => _isBusy;
             set { _isBusy = value; OnPropertyChanged(); UpdateCanGenerate(); }
         }
+
         public int SelectedBackgroundSlideIndex =>
             Slides
                 .Select((s, i) => new { Slide = s, Index = i })
@@ -160,13 +161,12 @@ namespace TocBuilder_dotnet_framework.ViewModels
 
         public MainViewModel()
         {
-            _thumbnailService = new ThumbnailService();
+            _previewthumbnailService = new PreviewThumbnailService();
             _tocService = new TocGeneratorService();
 
             Status = "Выберите презентацию";
 
             BrowseCommand = new RelayCommand(BrowseFile);
-            //GenerateCommand = new RelayCommand(GenerateToc, () => CanGenerate);
             GenerateCommand = new AsyncRelayCommand(async () => await GenerateTocAsync(), () => CanGenerate);
             SelectAllCommand = new RelayCommand(() => SelectAll(true));
             DeselectAllCommand = new RelayCommand(() => SelectAll(false));
@@ -217,39 +217,6 @@ namespace TocBuilder_dotnet_framework.ViewModels
             }
         }
 
-        //private void LoadSlides()
-        //{
-        //    Slides.Clear();
-        //    if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath)) return;
-
-        //    IsBusy = true;
-        //    Status = "Загрузка слайдов...";
-
-        //    try
-        //    {
-        //        (_actualSlideWidth, _actualSlideHeight) = _thumbnailService.GetSlideDimensions(FilePath);
-        //        var slides = _thumbnailService.GetSlides(FilePath);
-        //        foreach (var slide in slides)
-        //        {
-        //            slide.PropertyChanged += Slide_PropertyChanged;
-        //            Slides.Add(slide);
-        //        }
-
-        //        Status = $"Загружено {Slides.Count} слайдов";
-        //        UpdatePreview();
-        //        UpdateCanGenerate();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Status = $"Ошибка: {ex.Message}";
-        //        MessageBox.Show($"Не удалось загрузить презентацию:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        //    }
-        //    finally
-        //    {
-        //        IsBusy = false;
-        //    }
-        //}
-
         private async Task LoadSlidesAsync()
         {
             Slides.Clear();
@@ -260,9 +227,8 @@ namespace TocBuilder_dotnet_framework.ViewModels
 
             try
             {
-                // Запускаем в отдельном потоке с COM-инициализацией
-                var slides = await Task.Run(() => _thumbnailService.GetSlides(FilePath));
-                var dimensions = await Task.Run(() => _thumbnailService.GetSlideDimensions(FilePath));
+                var slides = await Task.Run(() => _previewthumbnailService.GetSlides(FilePath));
+                var dimensions = await Task.Run(() => _previewthumbnailService.GetSlideDimensions(FilePath));
 
                 (_actualSlideWidth, _actualSlideHeight) = dimensions;
 
@@ -313,7 +279,6 @@ namespace TocBuilder_dotnet_framework.ViewModels
             {
                 PreviewItems.Clear();
 
-                // реальный размер PPT-слайда
                 PreviewCanvasWidth = ActualSlideWidth;
                 PreviewCanvasHeight = ActualSlideHeight;
 
@@ -351,39 +316,6 @@ namespace TocBuilder_dotnet_framework.ViewModels
             CalculateAutoScale();
         }
 
-
-
-        //private void GenerateToc()
-        //{
-        //    if (!Slides.Any(s => s.IsSelected)) return;
-
-        //    IsBusy = true;
-        //    Status = "Создание оглавления...";
-
-        //    try
-        //    {
-        //        var selectedSlides = Slides.Where(s => s.IsSelected).ToList();
-        //        string outputPath = _tocService.CreateTableOfContents(FilePath, selectedSlides, Columns, Margin, SelectedBackgroundSlideIndex);
-
-        //        Status = $"✅ Готово! Файл сохранён: {Path.GetFileName(outputPath)}";
-
-        //        if (MessageBox.Show($"Оглавление создано!\n\nФайл: {outputPath}\n\nОткрыть презентацию?", "Готово", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-        //            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(outputPath) { UseShellExecute = true });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Status = $"❌ Ошибка: {ex.Message}";
-        //        MessageBox.Show($"Не удалось создать оглавление:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        //    }
-        //    finally
-        //    {
-        //        IsBusy = false;
-        //        UpdateCanGenerate();
-        //        GC.Collect();
-        //        GC.WaitForPendingFinalizers();
-        //    }
-        //}
-
         private async Task GenerateTocAsync()
         {
             if (!Slides.Any(s => s.IsSelected)) return;
@@ -395,7 +327,6 @@ namespace TocBuilder_dotnet_framework.ViewModels
             {
                 var selectedSlides = Slides.Where(s => s.IsSelected).ToList();
 
-                // Выполняем экспорт в отдельном потоке
                 string outputPath = await Task.Run(() => _tocService.CreateTableOfContents(FilePath, selectedSlides, Columns, Margin, SelectedBackgroundSlideIndex));
 
                 Status = $"✅ Готово! Файл сохранён: {Path.GetFileName(outputPath)}";
@@ -435,67 +366,5 @@ namespace TocBuilder_dotnet_framework.ViewModels
         protected void OnPropertyChanged([CallerMemberName] string propName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         #endregion
-    }
-
-    public class AsyncRelayCommand : ICommand
-    {
-        private readonly Func<Task> _execute;
-        private readonly Func<bool> _canExecute;
-        private bool _isExecuting;
-
-        public event EventHandler CanExecuteChanged;
-
-        public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public bool CanExecute(object parameter)
-        {
-            return !_isExecuting && (_canExecute?.Invoke() ?? true);
-        }
-
-        public async void Execute(object parameter)
-        {
-            _isExecuting = true;
-            RaiseCanExecuteChanged();
-
-            try
-            {
-                await _execute();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                _isExecuting = false;
-                RaiseCanExecuteChanged();
-            }
-        }
-
-        public void RaiseCanExecuteChanged()
-        {
-            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
-        public event EventHandler CanExecuteChanged;
-
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public bool CanExecute(object parameter) => _canExecute?.Invoke() ?? true;
-        public void Execute(object parameter) => _execute();
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

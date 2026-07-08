@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Imaging;
 
 namespace TocBuilder_dotnet_framework.Models
 {
@@ -13,7 +8,7 @@ namespace TocBuilder_dotnet_framework.Models
     {
         private bool _isSelected = true; 
         private int _number; 
-        private BitmapImage _thumbnail;
+        private byte[] _thumbnail;
         private bool _isBackground;
 
         public bool IsSelected
@@ -24,7 +19,7 @@ namespace TocBuilder_dotnet_framework.Models
 
         public int Number { get => _number; set { _number = value; OnPropertyChanged(); } }
 
-        public BitmapImage Thumbnail 
+        public byte[] Thumbnail 
         { 
             get => _thumbnail; 
             set { _thumbnail = value; OnPropertyChanged(); } 
@@ -50,5 +45,4 @@ namespace TocBuilder_dotnet_framework.Models
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName)); 
         }
     }
-
 }

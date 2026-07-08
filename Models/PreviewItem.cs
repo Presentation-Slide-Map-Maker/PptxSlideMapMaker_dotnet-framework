@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Media.Imaging;
 
 namespace TocBuilder_dotnet_framework.Models
 {
@@ -12,7 +11,7 @@ namespace TocBuilder_dotnet_framework.Models
         private double _width;
         private double _height;
         private string _caption;
-        private BitmapImage _thumbnail;
+        private byte[] _thumbnail;
         private double _captionHeight = 20;
 
         public double X
@@ -45,7 +44,7 @@ namespace TocBuilder_dotnet_framework.Models
             set { _caption = value; OnPropertyChanged(); }
         }
 
-        public BitmapImage Thumbnail
+        public byte[] Thumbnail
         {
             get => _thumbnail;
             set { _thumbnail = value; OnPropertyChanged(); }
