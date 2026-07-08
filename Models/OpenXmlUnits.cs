@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TocBuilder_dotnet_framework.Converters
+namespace TocBuilder_dotnet_framework.Models
 {
     public static class OpenXmlUnits
     {

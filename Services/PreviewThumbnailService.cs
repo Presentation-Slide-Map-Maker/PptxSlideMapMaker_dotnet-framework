@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using TocBuilder_dotnet_framework.Models;
 
 namespace TocBuilder_dotnet_framework.Services
 {
@@ -40,9 +41,8 @@ namespace TocBuilder_dotnet_framework.Services
                     var slideSize = presPart?.Presentation?.SlideSize;
                     if (slideSize != null && slideSize.Cx.HasValue && slideSize.Cy.HasValue)
                     {
-                        const double EMU_PER_PIXEL = 9525.0;
-                        slideWidth = (float)(slideSize.Cx.Value / EMU_PER_PIXEL);
-                        slideHeight = (float)(slideSize.Cy.Value / EMU_PER_PIXEL);
+                        slideWidth = (float)(slideSize.Cx.Value / OpenXmlUnits.EmuPerPixelAt96Dpi);
+                        slideHeight = (float)(slideSize.Cy.Value / OpenXmlUnits.EmuPerPixelAt96Dpi);
                     }
                 }
 

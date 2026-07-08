@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using TocBuilder_dotnet_framework.Converters;
+using TocBuilder_dotnet_framework.Models;
 using A = DocumentFormat.OpenXml.Drawing;
 
 namespace TocBuilder_dotnet_framework.Services
