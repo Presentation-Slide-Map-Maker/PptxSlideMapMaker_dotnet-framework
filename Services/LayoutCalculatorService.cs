@@ -13,8 +13,8 @@ namespace TocBuilder_dotnet_framework.Services
         public const float MinThumbWidth = 80f;
         public const float MinThumbHeight = 60f;
 
-        public const float DefaultSlideWidth = 800f;   // 13.333 in × 72 = 960 (16:9)
-        public const float DefaultSlideHeight = 450f;  // 7.5 in × 72 = 540 (16:9)
+        public const float DefaultSlideWidth = 800f;   // Ширина слайда по умолчанию (13.333 in × 72 = 960)
+        public const float DefaultSlideHeight = 450f;  // Высота слайда по умолчанию (7.5 in × 72 = 540)
     }
 
     public static class LayoutCalculatorService
@@ -33,92 +33,83 @@ namespace TocBuilder_dotnet_framework.Services
             const float minThumbWidth = LayoutConstants.MinThumbWidth;
             const float minThumbHeight = LayoutConstants.MinThumbHeight;
 
-            // Доступная высота на мирниатюры и подписи
+            // Доступная рабочая область по высоте и ширине
             float availableHeight = slideHeight - titleHeight - bottomMargin;
             float availableWidth = slideWidth - (margin * 2);
 
-            // Вспомогательная функция для проверки конфигурации
-            (bool Fits, float ThumbW, float ThumbH, float RowH) TryColumns(int cols)
+            // Локальная функция для расчета размеров миниатюры при заданном числе колонок
+            (bool Fits, float ThumbW, float ThumbH, float RowH) CalculateSizeForColumns(int cols)
             {
-                // Ширина каждой миниатюры при кол-ве колонок = cols
+                if (cols <= 0) return (false, 0, 0, 0);
+
+                int rows = (int)Math.Ceiling((double)slideCount / cols);
+
+                // Исходный расчет ширины и высоты миниатюры на основе ограничения по ширине
                 float thumbW = (availableWidth - margin * (cols - 1)) / cols;
                 float thumbH = thumbW / slideAspectRatio;
 
-                int rows = (int)Math.Ceiling((double)slideCount / cols);
-                float rowH = thumbH + margin + captionHeight;
+                float totalH = rows * (thumbH + margin + captionHeight);
 
-                float totalH = rows * rowH; // Общая высота сетки
-                bool fits = totalH <= availableHeight && thumbW >= minThumbWidth && thumbH >= minThumbHeight;
-
-                // Если не помещается по высоте — попробуем сжать
-                if (!fits && totalH > availableHeight)
+                // Если высота сетки превышает доступную — пропорционально сжимаем под высоту
+                if (totalH > availableHeight)
                 {
-                    // Доступная высота на миниатюры и подписи
                     float maxThumbH = (availableHeight - rows * (captionHeight + margin)) / rows;
                     if (maxThumbH > 0)
                     {
-                        thumbH = Math.Max(minThumbHeight, maxThumbH);
-                        thumbW = thumbH * slideAspectRatio; // сохраняем соотношение
-
-                        // Проверим, умещается ли ширина
-                        if (thumbW > (availableWidth - margin * (cols - 1)) / cols)
-                        {
-                            thumbW = (availableWidth - margin * (cols - 1)) / cols;
-                            thumbH = thumbW / slideAspectRatio;
-                        }
-
-                        rowH = thumbH + margin + captionHeight;
-                        totalH = rows * rowH;
-                        fits = totalH <= availableHeight && thumbW >= minThumbWidth && thumbH >= minThumbHeight;
+                        thumbH = maxThumbH;
+                        thumbW = thumbH * slideAspectRatio;
+                        totalH = rows * (thumbH + margin + captionHeight); // Пересчитываем общую высоту
                     }
                 }
+
+                // Проверяем, укладывается ли сетка в доступную высоту и соблюдаются ли минимальные размеры
+                bool fits = totalH <= availableHeight && thumbW >= minThumbWidth && thumbH >= minThumbHeight;
+                float rowH = thumbH + margin + captionHeight;
 
                 return (fits, thumbW, thumbH, rowH);
             }
 
-            // 1. Если задано желаемое количество колонок — попробуем его сначала
+            // 1. Если задано желаемое число колонок вручную — используем его
             if (desiredColumns > 0)
             {
-                var result = TryColumns(desiredColumns);
+                var result = CalculateSizeForColumns(desiredColumns);
                 if (result.Fits)
                     return (desiredColumns, result.ThumbW, result.ThumbH, result.RowH);
             }
 
-            // 2. Иначе — перебор количества колонок, ищем наибольшую площадь миниатюры
-            (int bestCols, float bestW, float bestH, float bestRH) = (1, 0, 0, 0);
-            float bestScore = 0;
+            // 2. В автоматическом режиме перебираем от 1 до 6 колонок и ищем ту разметку, где миниатюры крупнее
+            int bestCols = 1;
+            float bestW = 0;
+            float bestH = 0;
+            float bestRH = 0;
 
-            for (int r = 1; r <= slideCount; r++)
+            int maxColsToCheck = Math.Min(6, slideCount);
+
+            for (int c = 1; c <= maxColsToCheck; c++)
             {
-                int c = (int)Math.Ceiling((double)slideCount / r);
-                var (fits, w, h, rh) = TryColumns(c);
+                var (fits, w, h, rh) = CalculateSizeForColumns(c);
                 if (!fits) continue;
 
-                float area = w * h;
-                float spaceUsed = (r * rh) / availableHeight;
-                int emptyCells = r * c - slideCount;
-                float symmetry = 1.0f / (1.0f + Math.Abs(r - c));
-
-                // Эвристика
-                float score = area * spaceUsed * symmetry * (1.0f / (emptyCells + 1));
-
-                if (score > bestScore)
+                // Выбираем разметку, которая максимизирует ширину миниатюры
+                if (w > bestW)
                 {
-                    bestScore = score;
-                    (bestCols, bestW, bestH, bestRH) = (c, w, h, rh);
+                    bestW = w;
+                    bestH = h;
+                    bestCols = c;
+                    bestRH = rh;
                 }
             }
 
-            // 3. Если ничего не подошло — используем fallback (1 колонка, принудительное сжатие)
-            if (bestScore == 0)
+            // 3. Крайний fallback: ни одна разметка не подошла
+            if (bestW == 0)
             {
-                var fallback = TryColumns(1);
+                var fallback = CalculateSizeForColumns(1);
                 if (fallback.Fits)
                     return (1, fallback.ThumbW, fallback.ThumbH, fallback.RowH);
 
-                // Крайний fallback: жёстко используем минимальные размеры
+                // Жестко принудительно используем минимальные размеры
                 float w = minThumbWidth;
-                float h = Math.Max(minThumbHeight, minThumbWidth / slideAspectRatio); // сохраняем пропорции
+                float h = Math.Max(minThumbHeight, minThumbWidth / slideAspectRatio);
                 float rh = h + margin + captionHeight;
                 return (Math.Min(4, slideCount), w, h, rh);
             }
@@ -126,6 +117,7 @@ namespace TocBuilder_dotnet_framework.Services
             return (bestCols, bestW, bestH, bestRH);
         }
 
+        // Генерация элементов превью для Canvas
         public static List<PreviewItem> GeneratePreviewItems(
             List<SlideItem> selectedSlides,
             int columns,
@@ -147,16 +139,22 @@ namespace TocBuilder_dotnet_framework.Services
             float thumbWidth = layoutInfo.ThumbWidth;
             float thumbHeight = layoutInfo.ThumbHeight;
             float rowHeight = layoutInfo.RowHeight;
+            int actualCols = layoutInfo.Columns;
+
+            // Расчет общей ширины сетки миниатюр
+            float gridWidth = actualCols * thumbWidth + (actualCols - 1) * margin;
+            // Центрирование сетки по горизонтали
+            float xStart = (slideWidth - gridWidth) / 2f;
 
             const float titleHeight = LayoutConstants.TitleHeight;
             const float yStart = titleHeight;
 
             for (int i = 0; i < selectedSlides.Count; i++)
             {
-                int row = i / layoutInfo.Columns;
-                int col = i % layoutInfo.Columns;
+                int row = i / actualCols;
+                int col = i % actualCols;
 
-                float x = margin + col * (thumbWidth + margin);
+                float x = xStart + col * (thumbWidth + margin);
                 float y = yStart + row * rowHeight;
 
                 previewItems.Add(new PreviewItem

@@ -54,7 +54,7 @@ namespace TocBuilder_dotnet_framework.Services
 
                 var slideNumbers = Enumerable.Range(1, slideCount).ToList();
                 
-                // ������� ����� SlideExportService
+                // Экспорт слайдов в PNG
                 _slideExportService.ExportSlidesToPng(filePath, tempDir, slideNumbers, previewWidth * 2, previewHeight * 2);
 
                 for (int i = 1; i <= slideCount; i++)
@@ -129,6 +129,33 @@ namespace TocBuilder_dotnet_framework.Services
             }
 
             return (LayoutConstants.DefaultSlideWidth, LayoutConstants.DefaultSlideHeight);
+        }
+
+        // Извлечение шрифтов темы (заголовка и тела) из слайд-мастера презентации
+        public List<string> GetThemeFonts(string filePath)
+        {
+            var fonts = new List<string>();
+            try
+            {
+                using (var doc = PresentationDocument.Open(filePath, isEditable: false))
+                {
+                    var presPart = doc.PresentationPart;
+                    var slideMaster = presPart?.SlideMasterParts?.FirstOrDefault();
+                    var themePart = slideMaster?.ThemePart;
+                    var fontScheme = themePart?.Theme?.ThemeElements?.FontScheme;
+
+                    string minorFont = fontScheme?.MinorFont?.LatinFont?.Typeface?.Value;
+                    if (!string.IsNullOrEmpty(minorFont)) fonts.Add(minorFont);
+
+                    string majorFont = fontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
+                    if (!string.IsNullOrEmpty(majorFont) && majorFont != minorFont) fonts.Add(majorFont);
+                }
+            }
+            catch
+            {
+                // Игнорируем ошибки при чтении темы
+            }
+            return fonts;
         }
 
         private static void TryDeleteFolder(string path)

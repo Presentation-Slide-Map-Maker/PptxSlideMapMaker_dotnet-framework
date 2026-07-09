@@ -32,7 +32,9 @@ namespace TocBuilder_dotnet_framework.Services
             List<Models.SlideItem> slides,
             int columns,
             int margin,
-            int backgroundSlideIndex)
+            int backgroundSlideIndex,
+            string selectedFont = null,
+            int selectedFontSize = 12)
         {
             string outputPath = GetOutputPath(inputPath);
 
@@ -50,17 +52,19 @@ namespace TocBuilder_dotnet_framework.Services
             {
                 var slideNumbers = slides.Select(s => s.Number).ToList();
 
-                // Export slides to PNG using SlideExportService
+                // Export slides to PNG
                 _slideExportService.ExportSlidesToPng(outputPath, tempDir, slideNumbers, 1600, 900);
 
-                // Build Table of Contents slide via OpenXml
+                // Build Table of Contents slide
                 BuildTocSlideOpenXml(
                     outputPath,
                     slides,
                     columns,
                     margin,
                     tempDir,
-                    backgroundSlideIndex);
+                    backgroundSlideIndex,
+                    selectedFont,
+                    selectedFontSize);
 
                 return outputPath;
             }
@@ -76,7 +80,9 @@ namespace TocBuilder_dotnet_framework.Services
             int columns,
             int margin,
             string tempDir,
-            int backgroundSlideIndex)
+            int backgroundSlideIndex,
+            string selectedFont = null,
+            int selectedFontSize = 12)
         {
             using (var doc = PresentationDocument.Open(pptxPath, true))
             {
@@ -88,7 +94,7 @@ namespace TocBuilder_dotnet_framework.Services
                 var presPart = doc.PresentationPart;
                 var slideIds = presPart.Presentation.SlideIdList.Elements<SlideId>().ToList();
 
-                // Validate slide index
+                // Валидация slide index
                 if (backgroundSlideIndex < 0 || backgroundSlideIndex >= slideIds.Count)
                     throw new ArgumentOutOfRangeException(nameof(backgroundSlideIndex));
 
@@ -131,12 +137,17 @@ namespace TocBuilder_dotnet_framework.Services
                     slideHeightPx
                 );
 
+                // Calculate total width of the grid area
+                float gridWidth = layout.Columns * layout.ThumbWidth + (layout.Columns - 1) * margin;
+                // Center the grid by sharing remaining horizontal space equally
+                float xStart = (slideWidthPx - gridWidth) / 2f;
+
                 for (int i = 0; i < slides.Count; i++)
                 {
                     int row = i / layout.Columns;
                     int col = i % layout.Columns;
 
-                    long x = OpenXmlUnits.PixelsToEmu(margin + col * (layout.ThumbWidth + margin));
+                    long x = OpenXmlUnits.PixelsToEmu(xStart + col * (layout.ThumbWidth + margin));
                     long y = OpenXmlUnits.PixelsToEmu(LayoutConstants.TitleHeight + row * layout.RowHeight);
 
                     long thumbW = OpenXmlUnits.PixelsToEmu(layout.ThumbWidth);
@@ -162,7 +173,7 @@ namespace TocBuilder_dotnet_framework.Services
 
                     // 3. Caption Shape
                     long captionY = y + thumbH;
-                    AddThumbnailCaption(shapeTree, i, x, captionY, thumbW, captionH, relId, slides[i].Number);
+                    AddThumbnailCaption(shapeTree, i, x, captionY, thumbW, captionH, relId, slides[i].Number, selectedFont, selectedFontSize);
                 }
 
                 // Add backlinks from other slides back to TOC
@@ -175,7 +186,7 @@ namespace TocBuilder_dotnet_framework.Services
                     if (slideIds[i].RelationshipId == tocRelId) continue; // пропускаем TOC slide
 
                     var slidePart = (SlidePart)presPart.GetPartById(slideIds[i].RelationshipId);
-                    AddBacklinkToSlide(slidePart, tocPart, presPart, i + 1, totalSlides);
+                    AddBacklinkToSlide(slidePart, tocPart, presPart, i + 1, totalSlides, selectedFont, selectedFontSize);
                 }
 
                 presPart.Presentation.Save();
@@ -312,8 +323,27 @@ namespace TocBuilder_dotnet_framework.Services
             long width,
             long height,
             string targetSlideRelId,
-            int slideNumber)
+            int slideNumber,
+            string selectedFont = null,
+            int selectedFontSize = 12)
         {
+            var runPr = new A.RunProperties(
+                new A.HyperlinkOnClick
+                {
+                    Id = targetSlideRelId,
+                    Action = "ppaction://hlinksldjump"
+                })
+            {
+                Language = TocConstants.DefaultLanguage,
+                FontSize = selectedFontSize * 100
+            };
+            if (!string.IsNullOrEmpty(selectedFont))
+            {
+                runPr.Append(new A.LatinFont { Typeface = selectedFont });
+                runPr.Append(new A.ComplexScriptFont { Typeface = selectedFont });
+                runPr.Append(new A.EastAsianFont { Typeface = selectedFont });
+            }
+
             shapeTree.Append(
                 new DocumentFormat.OpenXml.Presentation.Shape(
                     new NonVisualShapeProperties(
@@ -337,15 +367,7 @@ namespace TocBuilder_dotnet_framework.Services
                         new A.ListStyle(),
                         new A.Paragraph(
                             new A.Run(
-                                new A.RunProperties(
-                                    new A.HyperlinkOnClick
-                                    {
-                                        Id = targetSlideRelId,
-                                        Action = "ppaction://hlinksldjump"
-                                    })
-                                {
-                                    Language = TocConstants.DefaultLanguage
-                                },
+                                runPr,
                                 new A.Text($"{TocConstants.SlideCaptionPrefix}{slideNumber}")
                             )
                         )
@@ -359,7 +381,9 @@ namespace TocBuilder_dotnet_framework.Services
             SlidePart tocPart,
             PresentationPart presPart,
             int currentSlideNumber,
-            int totalSlides)
+            int totalSlides,
+            string selectedFont = null,
+            int selectedFontSize = 12)
         {
             var shapeTree = slidePart.Slide.CommonSlideData.ShapeTree;
 
@@ -394,6 +418,25 @@ namespace TocBuilder_dotnet_framework.Services
             slidePart.AddPart(tocPart); // создаёт локальное отношение
             string localTocRelId = slidePart.GetIdOfPart(tocPart); // локальный ID
 
+            var runPr = new A.RunProperties(
+                new A.SolidFill(new A.RgbColorModelHex { Val = "0000FF" }),
+                new A.Underline(),
+                new A.HyperlinkOnClick
+                {
+                    Id = localTocRelId,
+                    Action = "ppaction://hlinksldjump"
+                })
+            {
+                Language = TocConstants.DefaultLanguage,
+                FontSize = selectedFontSize * 100
+            };
+            if (!string.IsNullOrEmpty(selectedFont))
+            {
+                runPr.Append(new A.LatinFont { Typeface = selectedFont });
+                runPr.Append(new A.ComplexScriptFont { Typeface = selectedFont });
+                runPr.Append(new A.EastAsianFont { Typeface = selectedFont });
+            }
+
             var backlinkShape = new DocumentFormat.OpenXml.Presentation.Shape(
                 new NonVisualShapeProperties(
                     new NonVisualDrawingProperties { Id = maxId, Name = TocConstants.BacklinkName },
@@ -414,17 +457,7 @@ namespace TocBuilder_dotnet_framework.Services
                     new A.ListStyle(),
                     new A.Paragraph(
                         new A.Run(
-                            new A.RunProperties(
-                                new A.SolidFill(new A.RgbColorModelHex { Val = "0000FF" }),
-                                new A.Underline(),
-                                new A.HyperlinkOnClick
-                                {
-                                    Id = localTocRelId,
-                                    Action = "ppaction://hlinksldjump"
-                                })
-                            {
-                                Language = TocConstants.DefaultLanguage
-                            },
+                            runPr,
                             new A.Text(backlinkText)
                         )
                     )

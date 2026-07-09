@@ -8,39 +8,115 @@
         xmlns:model="clr-namespace:TocBuilder_dotnet_framework.Models" 
         xmlns:conv="clr-namespace:TocBuilder_dotnet_framework.Converters"
         Icon="/favicon.ico"
-        mc:Ignorable="d" Title="Presentation TOC Builder" Height="700" Width="1100">
+        mc:Ignorable="d" Title="Pptx Table of Contents Builder" Height="730" Width="1120"
+        AllowDrop="True" PreviewDragOver="Window_DragOver" PreviewDrop="Window_Drop">
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
     <Window.Resources>
         <conv:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter" />
+
+        <!-- Flat Button Style -->
         <Style TargetType="Button">
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Background" Value="#3F51B5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Margin" Value="4"/>
             <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#303F9F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#1A237E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#E0E0E0"/>
+                                <Setter Property="Foreground" Value="#9E9E9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
+        <!-- Flat TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" CornerRadius="3">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="true">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3F51B5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Minimalist GroupBox Style -->
         <Style TargetType="GroupBox">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#303F9F"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="HeaderTemplate">
                 <Setter.Value>
                     <DataTemplate>
-                        <TextBlock Text="{Binding}" FontWeight="DemiBold" FontSize="14"/>
+                        <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="13" Foreground="#3F51B5" Margin="4,0,4,4"/>
                     </DataTemplate>
                 </Setter.Value>
             </Setter>
-            <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="BorderBrush" Value="DarkGray"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" Grid.Row="0"/>
+                            <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" CornerRadius="4" Grid.Row="1" Padding="10">
+                                <ContentPresenter />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
+        <!-- Preview Item Grid Cell шаблон -->
         <DataTemplate x:Key="PreviewItemTemplate" DataType="model:PreviewItem">
-            <Border BorderBrush="#CCCCCC" BorderThickness="1" Background="White" Padding="2">
+            <Border BorderBrush="#E0E0E0" BorderThickness="1" Background="White" Padding="2" CornerRadius="3">
                 <StackPanel>
                     <Image Source="{Binding Thumbnail, Converter={StaticResource ByteArrayToImageConverter}}" Stretch="Uniform" MaxWidth="{Binding Width}" MaxHeight="{Binding Height}"/> 
-                    <TextBlock Text="{Binding Caption}" FontSize="10" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding Caption}" FontSize="10" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,2,0,0" Foreground="#333333"/>
                 </StackPanel>
             </Border>
         </DataTemplate>
     </Window.Resources>
     <!-- Основной Grid с тремя строками: файл, настройки, затем основной разделенный контент -->
-    <Grid Margin="10">
+    <Grid Margin="15" Background="#FAFAFA">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <!-- Панель файла -->
@@ -49,58 +125,76 @@
             <RowDefinition Height="*"/>
             <!-- Основная область (выбор слайдов + предпросмотр) -->
             <RowDefinition Height="Auto"/>
-            <!-- Статус -->
+            <!-- Status Bar -->
         </Grid.RowDefinitions>
         <!-- Панель файла (занимает всю ширину) -->
-        <GroupBox Grid.Row="0" Header="Презентация" Margin="0,0,0,10">
+        <GroupBox Grid.Row="0" Header="Презентация">
             <Grid Margin="0,3,0,3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="Выбрать" Command="{Binding BrowseCommand}" Width="80"/>
-                <TextBox Grid.Column="1" Text="{Binding FilePath}" IsReadOnly="True" Margin="10,0" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" Content="Создать TOC" Command="{Binding GenerateCommand}" IsEnabled="{Binding CanGenerate}" Width="100"/>
+                <Button Grid.Column="0" Content="Выбрать" Command="{Binding BrowseCommand}" Width="90"/>
+                <TextBox Grid.Column="1" Text="{Binding FilePath}" IsReadOnly="True" Margin="10,0" VerticalAlignment="Center" Focusable="False" IsHitTestVisible="False"/>
+                <Button Grid.Column="2" Content="Создать TOC" Command="{Binding GenerateCommand}" IsEnabled="{Binding CanGenerate}" Width="120"/>
             </Grid>
         </GroupBox>
         <!-- Настройки (занимает всю ширину) -->
-        <GroupBox Grid.Row="1" Header="Настройки сетки" Margin="0,0,0,10">
+        <GroupBox Grid.Row="1" Header="Настройки сетки">
             <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
                 <StackPanel Margin="5,0,0,0">
-                    <TextBlock Text="Колонок:" Margin="0,0,0,5"/>
+                    <TextBlock Text="Колонок:" Margin="0,0,0,5" Foreground="#555555" FontWeight="SemiBold" FontSize="11"/>
                     <Slider x:Name="ColumnsSlider" Minimum="1" Maximum="6" Value="{Binding Columns}" Width="90" TickFrequency="1" IsSnapToTickEnabled="True"
                             IsEnabled="{Binding UseFixedColumns}"/>
-                    <TextBlock Text="{Binding ColumnsDisplayText}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding ColumnsDisplayText}" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#3F51B5"/>
                 </StackPanel>
-                <StackPanel VerticalAlignment="Center" Width="100"  Margin="10,0,0,0">
+                
+                <StackPanel VerticalAlignment="Center" Width="130" Margin="15,0,0,0">
                     <CheckBox IsChecked="{Binding UseFixedColumns}">
                         <CheckBox.Content>
-                            <TextBlock Text="Фиксировать кол-во колонок" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <TextBlock Text="Фиксировать кол-во колонок" TextWrapping="Wrap" FontSize="11" Foreground="#444444"/>
                         </CheckBox.Content>
                     </CheckBox>
                 </StackPanel>
+                
                 <StackPanel Orientation="Horizontal" Margin="15,0,15,0">
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
                 </StackPanel>
+                
                 <StackPanel>
-                    <TextBlock Text="Отступы (px):" Margin="0,0,0,5"/>
+                    <TextBlock Text="Отступы (px):" Margin="0,0,0,5" Foreground="#555555" FontWeight="SemiBold" FontSize="11"/>
                     <Slider x:Name="MarginSlider" Minimum="10" Maximum="50" Value="{Binding Margin}" Width="100" TickFrequency="5" IsSnapToTickEnabled="True"/>
-                    <TextBlock Text="{Binding Margin, StringFormat='{}{0}px'}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Margin, StringFormat='{}{0}px'}" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#3F51B5"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="15,0,15,0">
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
+                </StackPanel>
+
+                <StackPanel Margin="5,0,0,0">
+                    <TextBlock Text="Шрифт:" Margin="0,0,0,5" Foreground="#555555" FontWeight="SemiBold" FontSize="11"/>
+                    <ComboBox ItemsSource="{Binding AvailableFonts}" SelectedItem="{Binding SelectedFont}" Width="160" Height="24" VerticalContentAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Margin="10,0,0,0">
+                    <TextBlock Text="Размер:" Margin="0,0,0,5" Foreground="#555555" FontWeight="SemiBold" FontSize="11"/>
+                    <ComboBox ItemsSource="{Binding AvailableFontSizes}" SelectedItem="{Binding SelectedFontSize}" Width="60" Height="24" VerticalContentAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
+        
         <!-- Основная область (разделена на 2 колонки) -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="230"/>
+                <ColumnDefinition Width="260"/>
                 <!-- Левая колонка для выбора слайдов -->
                 <ColumnDefinition Width="*"/>
                 <!-- Правая колонка для предпросмотра -->
             </Grid.ColumnDefinitions>
             <!-- Левая панель выбора слайдов -->
-            <GroupBox Grid.Column="0" Header="Cлайды в оглавление" Margin="0,0,10,0">
-                <Grid Margin="0,0,5,5">
+            <GroupBox Grid.Column="0" Header="Слайды в оглавление" Margin="0,0,10,0">
+                <Grid Margin="0,0,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <!-- Кнопки -->
@@ -109,34 +203,71 @@
                     </Grid.RowDefinitions>
                     <!-- Кнопки "Выбрать все" / "Снять все" -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5" Grid.Row="0">
-                        <Button Content="Выбрать все" Command="{Binding SelectAllCommand}"/>
-                        <Button Content="Снять все" Command="{Binding DeselectAllCommand}"/>
+                        <Button Content="Выбрать все" Command="{Binding SelectAllCommand}" Width="110"/>
+                        <Button Content="Снять все" Command="{Binding DeselectAllCommand}" Width="100"/>
                     </StackPanel>
                     <!-- Список слайдов -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="2">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Row="1" Margin="0,5,0,0">
                         <ItemsControl ItemsSource="{Binding Slides}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Vertical"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
+                            
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border BorderBrush="#CCCCCC" BorderThickness="1"
-                                CornerRadius="3" Margin="4" Padding="6" Background="White">
+                                    <Border CornerRadius="4" Margin="4" Padding="6">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="Background" Value="White"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#F7F9FC"/>
+                                                        <Setter Property="BorderBrush" Value="#B3C0E6"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="#3F51B5"/>
+                                                        <Setter Property="BorderThickness" Value="1.5"/>
+                                                        <Setter Property="Background" Value="#F5F7FF"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsBackground}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="#FF9800"/>
+                                                        <Setter Property="BorderThickness" Value="1.5"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        
                                         <StackPanel>
                                             <!-- Верхняя строка -->
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Number, StringFormat='Слайд {0}'}"
-                                               FontWeight="Bold" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <!-- Миниатюра -->
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                                    <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding Number, StringFormat='Слайд {0}'}" FontWeight="Bold" VerticalAlignment="Center" Foreground="#333333"/>
+                                                </StackPanel>
+                                                
+                                                <!-- Значок Background slide -->
+                                                <Border Grid.Column="1" Background="#FF9800" CornerRadius="3" Padding="5,2" Margin="0,0,2,0" 
+                                                        Visibility="{Binding IsBackground, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                    <TextBlock Text="ФОН" FontSize="9" Foreground="White" FontWeight="Bold"/>
+                                                </Border>
+                                            </Grid>
+                                            
+                                            <!-- Slide Thumbnail -->
                                             <Image Source="{Binding Thumbnail, Converter={StaticResource ByteArrayToImageConverter}}"
-                                       Height="70" Stretch="Uniform" Margin="0,4,0,4"/>
-                                            <!-- Выбор фона -->
+                                                   Height="75" Stretch="Uniform" Margin="0,4,0,6"/>
+                                            
+                                            <!-- Выбор Background -->
                                             <RadioButton IsChecked="{Binding IsBackground}" GroupName="BackgroundSlide"
-                                             Content="Использовать как фон TOC" FontSize="11" Foreground="#444"/>
+                                                         Content="Использовать как фон TOC" FontSize="10.5" Foreground="#555555" Margin="2,0,0,2"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -145,39 +276,43 @@
                     </ScrollViewer>
                 </Grid>
             </GroupBox>
-            <!-- Правая панель предпросмотра -->
-            <GroupBox Grid.Column="1" Header="Предпросмотр TOC" SizeChanged="PreviewGroupBox_SizeChanged">
-                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Margin="5,5,5,5">
+            
+            <!-- Правая панель: TOC Preview -->
+            <GroupBox Grid.Column="1" Header="Предпросмотр TOC" SizeChanged="PreviewGroupBox_SizeChanged" Background="White">
+                <Border Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <Grid Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}">
-                            <Grid.RenderTransform>
-                                <ScaleTransform ScaleX="{Binding PreviewScale}" ScaleY="{Binding PreviewScale}" />
-                            </Grid.RenderTransform>
-                            <!-- Фон -->
-                            <Image Source="{Binding PreviewBackGround, Converter={StaticResource ByteArrayToImageConverter}}" Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Stretch="Uniform" />
-                            <!-- Сетка миниатюр -->
-                            <Canvas Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Background="#80FFFFFF">
-                                <ItemsControl ItemsSource="{Binding PreviewItems}" ItemTemplate="{StaticResource PreviewItemTemplate}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <Canvas />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemContainerStyle>
-                                        <Style TargetType="ContentPresenter">
-                                            <Setter Property="Canvas.Left" Value="{Binding X}" />
-                                            <Setter Property="Canvas.Top" Value="{Binding Y}" />
-                                        </Style>
-                                    </ItemsControl.ItemContainerStyle>
-                                </ItemsControl>
-                            </Canvas>
+                        <!-- Обёртка для централизации scaled Grid -->
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}">
+                                <Grid.RenderTransform>
+                                    <ScaleTransform ScaleX="{Binding PreviewScale}" ScaleY="{Binding PreviewScale}" />
+                                </Grid.RenderTransform>
+                                <!-- Фон -->
+                                <Image Source="{Binding PreviewBackGround, Converter={StaticResource ByteArrayToImageConverter}}" Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Stretch="Uniform" />
+                                <!-- Сетка миниатюр -->
+                                <Canvas Width="{Binding PreviewCanvasWidth}" Height="{Binding PreviewCanvasHeight}" Background="#80FFFFFF">
+                                    <ItemsControl ItemsSource="{Binding PreviewItems}" ItemTemplate="{StaticResource PreviewItemTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                    </ItemsControl>
+                                </Canvas>
+                            </Grid>
                         </Grid>
                     </ScrollViewer>
                 </Border>
             </GroupBox>
         </Grid>
         <!-- Статус + масштаб превью -->
-        <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="3" Padding="10" Margin="0,10,0,0">
+        <Border Grid.Row="3" Background="#EEEEEE" CornerRadius="4" Padding="10" Margin="0,15,0,0" BorderBrush="#E0E0E0" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -191,16 +326,16 @@
                 <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
                     <TextBlock Text="Масштаб:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <Slider x:Name="ZoomSlider" Minimum="0.5" Maximum="2.0" Value="{Binding PreviewScale}"
-                    Width="80" TickFrequency="0.1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding PreviewScale, StringFormat='{}{0:P0}'}" VerticalAlignment="Center" Margin="6,0,0,0" FontWeight="Bold"/>
+                            Width="80" TickFrequency="0.1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding PreviewScale, StringFormat='{}{0:P0}'}" VerticalAlignment="Center" Margin="6,0,0,0" FontWeight="Bold" Foreground="#3F51B5"/>
                 </StackPanel>
             </Grid>
         </Border>
         <!-- Индикатор загрузки (занимает всё окно) -->
         <Border Grid.Row="0" Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Panel.ZIndex="100">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="200" Height="20" Margin="0,0,0,10"/>
-                <TextBlock Text="{Binding Status}" Foreground="White" FontSize="14" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="300"/>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,0,0,15" Background="#E0E0E0" Foreground="#3F51B5" BorderThickness="0"/>
+                <TextBlock Text="{Binding Status}" Foreground="#333333" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="300"/>
             </StackPanel>
         </Border>
     </Grid>

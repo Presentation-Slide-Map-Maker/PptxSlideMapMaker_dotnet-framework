@@ -38,6 +38,24 @@ namespace TocBuilder_dotnet_framework.ViewModels
         private double _previewScale = 1.0;
         private double _autoScale = 1.0;
 
+        private string _selectedFont;
+        public string SelectedFont
+        {
+            get => _selectedFont;
+            set { _selectedFont = value; OnPropertyChanged(); }
+        }
+
+        public ObservableCollection<string> AvailableFonts { get; } = new ObservableCollection<string>();
+
+        private int _selectedFontSize = 12;
+        public int SelectedFontSize
+        {
+            get => _selectedFontSize;
+            set { _selectedFontSize = value; OnPropertyChanged(); }
+        }
+
+        public ObservableCollection<int> AvailableFontSizes { get; } = new ObservableCollection<int>();
+
         public double PreviewCanvasWidth
         {
             get => _previewCanvasWidth;
@@ -166,6 +184,28 @@ namespace TocBuilder_dotnet_framework.ViewModels
 
             Status = "Выберите презентацию";
 
+            // Загрузка системных шрифтов
+            var systemFonts = System.Windows.Media.Fonts.SystemFontFamilies
+                .Select(f => f.Source)
+                .OrderBy(name => name)
+                .ToList();
+
+            foreach (var font in systemFonts)
+            {
+                AvailableFonts.Add(font);
+            }
+
+            // Шрифт по умолчанию
+            SelectedFont = AvailableFonts.Contains("Calibri") ? "Calibri" : (AvailableFonts.FirstOrDefault() ?? "Arial");
+
+            // Загрузка размеров шрифтов
+            var fontSizes = new[] { 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40 };
+            foreach (var size in fontSizes)
+            {
+                AvailableFontSizes.Add(size);
+            }
+            SelectedFontSize = 12;
+
             BrowseCommand = new RelayCommand(BrowseFile);
             GenerateCommand = new AsyncRelayCommand(async () => await GenerateTocAsync(), () => CanGenerate);
             SelectAllCommand = new RelayCommand(() => SelectAll(true));
@@ -236,6 +276,16 @@ namespace TocBuilder_dotnet_framework.ViewModels
                 {
                     slide.PropertyChanged += Slide_PropertyChanged;
                     Slides.Add(slide);
+                }
+
+                var themeFonts = await Task.Run(() => _previewthumbnailService.GetThemeFonts(FilePath));
+                if (themeFonts.Any())
+                {
+                    string themeBodyFont = themeFonts.First();
+                    if (AvailableFonts.Contains(themeBodyFont))
+                    {
+                        SelectedFont = themeBodyFont;
+                    }
                 }
 
                 Status = $"Загружено {Slides.Count} слайдов";
@@ -327,7 +377,7 @@ namespace TocBuilder_dotnet_framework.ViewModels
             {
                 var selectedSlides = Slides.Where(s => s.IsSelected).ToList();
 
-                string outputPath = await Task.Run(() => _tocService.CreateTableOfContents(FilePath, selectedSlides, Columns, Margin, SelectedBackgroundSlideIndex));
+                string outputPath = await Task.Run(() => _tocService.CreateTableOfContents(FilePath, selectedSlides, Columns, Margin, SelectedBackgroundSlideIndex, SelectedFont, SelectedFontSize));
 
                 Status = $"✅ Готово! Файл сохранён: {Path.GetFileName(outputPath)}";
 
